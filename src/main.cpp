@@ -144,7 +144,10 @@ bool uploadDataToApi()
 void setup()
 {
 
-    Serial.begin(115200);
+    if (DEBUG)
+    {
+        Serial.begin(115200);
+    }
 
     weatherSensor.begin();
 
