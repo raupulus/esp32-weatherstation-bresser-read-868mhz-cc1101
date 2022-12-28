@@ -47,7 +47,9 @@
 
 #include <Arduino.h>
 
+#if (DEBUG)
 #define _DEBUG_MODE_ // Enable debug output (serial console)
+#endif
 
 #define NUM_SENSORS 1 // Number of sensors to be received
 
@@ -61,7 +63,7 @@ uint32_t const sensor_ids_inc[] = {};
 
 // Disable data type which will not be used to save RAM
 #define WIND_DATA_FLOATINGPOINT
-#define WIND_DATA_FIXEDPOINT
+// #define WIND_DATA_FIXEDPOINT
 
 // Select appropriate sensor message format(s)
 // #define BRESSER_5_IN_1
