@@ -1,0 +1,13 @@
+// Datos del Wireless
+#define AP_NAME ""          // Nombre SSID del router Wifi
+#define AP_PASSWORD ""      // Contraseña para conectar al router Wifi
+#define upload_to_api false // Indica si hay subidas a la API
+
+// Datos de la API
+#define API_DOMAIN ""              // El dominio o la ip de la api: https://fryntiz.dev
+#define API_PORT "443"             // Puerto al que acceder a la api
+#define API_PATH ""                // Directorio dentro de la api para lanzar el POST
+#define API_TOKEN_BEARER "Bearer ????" // Token Bearer para autenticarse en la API
+#define DEVICE_ID "1"              // El id del dispositivo asociado en la API para la subida
+
+#define DEBUG false // Indica si se muestra información de depuración

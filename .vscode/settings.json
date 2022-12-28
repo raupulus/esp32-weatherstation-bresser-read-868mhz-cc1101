@@ -1,6 +1,7 @@
 {
   "platformio-ide.activateOnlyOnPlatformIOProject": true,
   "files.associations": {
-    "new": "cpp"
+    "new": "cpp",
+    "string": "cpp"
   }
 }
