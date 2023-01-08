@@ -6,6 +6,8 @@
 #include "WeatherSensor.h"
 #include "api.cpp"
 
+#include <esp_timer.h>
+
 const int LED_ON = 2; // Pin para indicar que está encendido el circuito.
 
 float temp;
@@ -22,10 +24,16 @@ float wind_dir = 0;
 bool wind_ok = false;
 
 float rain = 0;
+float rain_intensity = 0;
+float rain_month = 0;
 bool rain_ok = false;
+uint64_t rain_timestamp = esp_timer_get_time(); // Fecha de la última lectura de lluvia, para calcular la intensidad
 
 float moisture = 0;
 bool moisture_ok = false;
+
+// Indica si es la primera lectura tras iniciar
+bool first_read = true;
 
 WeatherSensor weatherSensor;
 
@@ -75,6 +83,11 @@ void wifiConnect()
 
 bool uploadDataToApi()
 {
+    if (first_read)
+    {
+        return true;
+    }
+
     wifiConnect();
 
     if (WiFi.status() == WL_CONNECTED)
@@ -84,7 +97,7 @@ bool uploadDataToApi()
         HTTPClient http;
 
         // Parámetros a enviar
-        // TODO: Convertir a km/h el viento
+        // TODO: Preparar diff en precipitaciones
         String params = "{\"hardware_device_id\":" + (String)DEVICE_ID +
                         ",\"temperature\":" + (String)temp +
                         ",\"humidity\":" + (String)humidity +
@@ -94,6 +107,8 @@ bool uploadDataToApi()
                         ",\"wind_max_speed\":" + (String)wind_max +
                         ",\"wind_grades\":" + (String)wind_dir +
                         ",\"rain\":" + (String)rain +
+                        ",\"rain_intensity\":" + (String)rain_intensity +
+                        ",\"rain_month\":" + (String)rain_month +
                         ",\"moisture\":" + (String)moisture +
                         "}";
 
@@ -190,6 +205,8 @@ void resetAllReads()
     wind_min = 0.0;
     wind_dir = 0.0;
     rain = 0.0;
+    rain_intensity = 0;
+    // rain_month = 0; // Para calcular diferencia mm, no puedo resetearlo
     moisture = 0.0;
 
     temp_ok = false;
@@ -251,7 +268,42 @@ bool checkReadsSensor(int sensorId)
 
     if (sensor.rain_ok)
     {
-        rain = sensor.rain_mm;
+        // Cuando es la primera lectura, almaceno el acumulado para después obtener la diferencia
+        if (first_read)
+        {
+            rain_month = sensor.rain_mm;
+            rain_timestamp = esp_timer_get_time();
+
+            first_read = false;
+        }
+        else
+        {
+            // Diferencia de lluvia entre lecturas
+            float rain_diff = sensor.rain_mm - rain_month;
+
+            rain = rain_diff > 0 ? rain_diff : 0;
+
+            // Acumulado de lluvia durante el último mes
+            rain_month = sensor.rain_mm;
+
+            if (rain > 0)
+            {
+                // Intensidad de lluvia
+                uint64_t now = esp_timer_get_time();
+                uint64_t diff = now - rain_timestamp;
+                rain_timestamp = now;
+
+                int diff_in_seconds = diff / 1000000;
+
+                rain_intensity = (rain / diff_in_seconds) * 3600;
+            }
+            else
+            {
+                rain_timestamp = esp_timer_get_time();
+                rain_intensity = 0;
+            }
+        }
+
         rain_ok = true;
     }
 
@@ -321,6 +373,10 @@ void loop()
                 Serial.printf("Wind dir: %4.1f", wind_dir);
                 Serial.println("");
                 Serial.printf("Rain: %4.1f", rain);
+                Serial.println("");
+                Serial.printf("Rain Intensity: %4.1f", rain_intensity);
+                Serial.println("");
+                Serial.printf("Rain Month: %4.1f", rain_month);
                 Serial.println("");
                 Serial.printf("Moisture: %4.1f", moisture);
                 Serial.println("");
