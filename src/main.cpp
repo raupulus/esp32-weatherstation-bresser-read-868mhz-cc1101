@@ -76,6 +76,21 @@ void wifiConnect()
         {
             debug("Se ha conectado al wifi correctamente..");
         }
+        else
+        {
+            debug("No se ha podido conectar al wifi..");
+            debug("Estado: " + (String)WiFi.status());
+            debug("SSID: " + (String)WiFi.SSID());
+            debug("IP: " + (String)WiFi.localIP());
+            debug("MAC: " + (String)WiFi.macAddress());
+            debug("RSSI: " + (String)WiFi.RSSI());
+            debug("BSSID: " + (String)WiFi.BSSIDstr());
+            debug("Canal: " + (String)WiFi.channel());
+            debug("Gateway: " + (String)WiFi.gatewayIP());
+            debug("Máscara: " + (String)WiFi.subnetMask());
+            debug("DNS: " + (String)WiFi.dnsIP());
+            debug("Puerta de enlace: " + (String)WiFi.gatewayIP());
+        }
     }
 
     delay(2000);
@@ -162,6 +177,7 @@ void setup()
     if (DEBUG)
     {
         Serial.begin(115200);
+        printf("Serial iniciado");
     }
 
     weatherSensor.begin();
