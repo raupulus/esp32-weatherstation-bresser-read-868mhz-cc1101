@@ -10,6 +10,10 @@
 
 const int LED_ON = 2; // Pin para indicar que está encendido el circuito.
 
+// Defino los pines para los LEDs secundarios de información
+#define LED1_PIN 4
+#define LED2_PIN 2
+
 float temp;
 bool temp_ok = false;
 
@@ -179,6 +183,10 @@ void setup()
         Serial.begin(115200);
         printf("Serial iniciado");
     }
+
+    // Configuro los pines de los LEDs como salidas
+    pinMode(LED1_PIN, OUTPUT);
+    pinMode(LED2_PIN, OUTPUT);
 
     weatherSensor.begin();
 
@@ -351,16 +359,13 @@ void loop()
     {
         debug("Sensor data received\n");
     }
-    else
-    {
-        debug("Sensor timeout\n");
-    }
-
-    ///////////////////////////////
 
     if (!decode_ok)
     {
+        digitalWrite(LED1_PIN, HIGH);
         debug("Sensor timeout\n");
+        delay(100);
+        digitalWrite(LED1_PIN, LOW);
     }
 
     for (int i = 0; i < NUM_SENSORS; i++)
@@ -369,6 +374,8 @@ void loop()
 
         if (checkAllSensors() && upload_to_api)
         {
+
+            digitalWrite(LED2_PIN, HIGH);
 
             if (DEBUG)
             {
@@ -402,6 +409,8 @@ void loop()
 
             // Si intenta subir datos a la api, reinicia lecturas.
             uploadDataToApi() ? resetAllReads() : debug("Error al subir datos a la API");
+
+            digitalWrite(LED2_PIN, LOW);
         }
     }
     delay(100);
