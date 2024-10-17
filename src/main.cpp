@@ -11,8 +11,9 @@
 const int LED_ON = 2; // Pin para indicar que está encendido el circuito.
 
 // Defino los pines para los LEDs secundarios de información
-#define LED1_PIN 4
-#define LED2_PIN 2
+#define LED1_PIN 4 // Indica un error
+#define LED2_PIN 2 // Indica una lectura correcta
+#define LED3_PIN 0 // Indica que está leyendo datos (Led verde parpadeando)
 
 float temp;
 bool temp_ok = false;
@@ -59,8 +60,10 @@ void debug(String message, bool newLine = true)
 // Loop en cada iteración buscando datos
 void loopCallback(void)
 {
+    digitalWrite(LED3_PIN, HIGH);
     // Normally something really important would be done here
     debug(".", false);
+    digitalWrite(LED3_PIN, LOW);
 }
 
 /*
@@ -175,6 +178,37 @@ bool uploadDataToApi()
     return true;
 }
 
+void simulateLightning()
+{
+    int flashes = random(5, 11); // Número de flashes en una ráfaga de rayos
+    for (int i = 0; i < flashes; i++)
+    {
+        int led = random(1, 3); // Selecciono aleatoriamente uno de los dos LEDs
+        if (led == 1)
+        {
+            digitalWrite(LED1_PIN, HIGH);
+        }
+        else
+        {
+            digitalWrite(LED2_PIN, HIGH);
+        }
+
+        delay(random(50, 200)); // Duración del flash entre 50 y 200 ms
+
+        // Apagar el LED
+        if (led == 1)
+        {
+            digitalWrite(LED1_PIN, LOW);
+        }
+        else
+        {
+            digitalWrite(LED2_PIN, LOW);
+        }
+
+        delay(random(100, 500)); // Tiempo entre flashes de 100 a 500 ms
+    }
+}
+
 void setup()
 {
 
@@ -187,6 +221,11 @@ void setup()
     // Configuro los pines de los LEDs como salidas
     pinMode(LED1_PIN, OUTPUT);
     pinMode(LED2_PIN, OUTPUT);
+    pinMode(LED3_PIN, OUTPUT);
+
+    digitalWrite(LED1_PIN, HIGH);
+    digitalWrite(LED2_PIN, HIGH);
+    digitalWrite(LED3_PIN, HIGH);
 
     weatherSensor.begin();
 
@@ -194,6 +233,15 @@ void setup()
     debug("Antes de primera conexión wireless");
     wifiConnect();
     debug("Después de primera conexión wireless");
+
+    delay(1000);
+    digitalWrite(LED1_PIN, LOW);
+    digitalWrite(LED2_PIN, LOW);
+    digitalWrite(LED3_PIN, LOW);
+
+    delay(1000);
+
+    simulateLightning();
 }
 
 /*
@@ -411,6 +459,8 @@ void loop()
             uploadDataToApi() ? resetAllReads() : debug("Error al subir datos a la API");
 
             digitalWrite(LED2_PIN, LOW);
+
+            simulateLightning();
         }
     }
     delay(100);
