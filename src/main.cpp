@@ -4,6 +4,7 @@
 #include <string>
 #include "WeatherSensorCfg.h"
 #include "WeatherSensor.h"
+#include "WeatherUtils.h"
 #include "api.cpp"
 
 #include <esp_timer.h>
@@ -14,6 +15,10 @@ const int LED_ON = 2; // Pin para indicar que está encendido el circuito.
 #define LED1_PIN 4 // Indica un error
 #define LED2_PIN 2 // Indica una lectura correcta
 #define LED3_PIN 0 // Indica que está leyendo datos (Led verde parpadeando)
+
+#ifndef DEVICE_VOLTAGE
+#define DEVICE_VOLTAGE 5.0
+#endif
 
 float temp;
 bool temp_ok = false;
@@ -118,30 +123,68 @@ bool uploadDataToApi()
 
         HTTPClient http;
 
-        // Parámetros a enviar
-        // TODO: Preparar diff en precipitaciones
-        String params = "{\"hardware_device_id\":" + (String)DEVICE_ID +
-                        ",\"temperature\":" + (String)temp +
-                        ",\"humidity\":" + (String)humidity +
-                        ",\"wind_speed\":" + (String)wind_avg +
-                        ",\"wind_average_speed\":" + (String)wind_avg +
-                        ",\"wind_min_speed\":" + (String)wind_min +
-                        ",\"wind_max_speed\":" + (String)wind_max +
-                        ",\"wind_grades\":" + (String)wind_dir +
-                        ",\"rain\":" + (String)rain +
-                        ",\"rain_intensity\":" + (String)rain_intensity +
-                        ",\"rain_month\":" + (String)rain_month +
-                        ",\"moisture\":" + (String)moisture +
-                        "}";
+        char wind_direction_buf[8];
+        float normalized_dir = fmod(fmod(wind_dir, 360.0f) + 360.0f, 360.0f);
+        winddir_flt_to_str(normalized_dir, wind_direction_buf);
+        int wind_grades = (int)round(normalized_dir);
+        if (wind_grades >= 360) wind_grades = 0;
+
+        float w_speed = wind_avg >= 0 ? wind_avg : 0.0f;
+        float w_avg = wind_avg >= 0 ? wind_avg : 0.0f;
+        float w_min = wind_min >= 0 ? wind_min : 0.0f;
+        float w_max = wind_max >= 0 ? wind_max : 0.0f;
+
+        float r_rain = rain >= 0 ? rain : 0.0f;
+        float r_intensity = rain_intensity >= 0 ? rain_intensity : 0.0f;
+        float r_month = rain_month >= 0 ? rain_month : 0.0f;
+
+        // Métricas de diagnóstico del hardware
+        float hw_temp = temperatureRead();
+        float hw_ram = 0.0f;
+        if (ESP.getHeapSize() > 0)
+        {
+            hw_ram = 100.0f * (1.0f - ((float)ESP.getFreeHeap() / (float)ESP.getHeapSize()));
+        }
+        float hw_disk = 0.0f;
+        if (ESP.getFlashChipSize() > 0)
+        {
+            hw_disk = 100.0f * ((float)ESP.getSketchSize() / (float)ESP.getFlashChipSize());
+        }
+        uint32_t hw_uptime = (uint32_t)(esp_timer_get_time() / 1000000ULL);
+        String hw_ip_local = WiFi.localIP().toString();
+
+        // Parámetros a enviar (API V2: Lote multi-sensor + hardware_device_info)
+        String params = "{\"data\":{"
+                        "\"temperature\":[{\"value\":" + String(temp, 1) + "}],"
+                        "\"humidity\":[{\"value\":" + String(humidity, 1) + "}],"
+                        "\"wind\":[{\"speed\":" + String(w_speed, 1) +
+                        ",\"average\":" + String(w_avg, 1) +
+                        ",\"min\":" + String(w_min, 1) +
+                        ",\"max\":" + String(w_max, 1) + "}],"
+                        "\"wind_direction\":[{\"direction\":\"" + String(wind_direction_buf) +
+                        "\",\"grades\":" + String(wind_grades) + "}],"
+                        "\"rain\":[{\"rain\":" + String(r_rain, 1) +
+                        ",\"moisture\":" + String(moisture, 1) +
+                        ",\"rain_intensity\":" + String(r_intensity, 1) +
+                        ",\"rain_month\":" + String(r_month, 1) + "}]"
+                        "},"
+                        "\"hardware_device_info\":{"
+                        "\"temp\":" + String(hw_temp, 1) + ","
+                        "\"voltage\":" + String(DEVICE_VOLTAGE, 1) + ","
+                        "\"ram\":" + String(hw_ram, 1) + ","
+                        "\"disk\":" + String(hw_disk, 1) + ","
+                        "\"ip_local\":\"" + hw_ip_local + "\","
+                        "\"uptime\":" + String(hw_uptime) +
+                        "}}";
 
         debug("Parámetros json: ");
         debug(params);
 
-        // http.begin("https://api.fryntiz.dev/smartplant/register/add-json");
-        http.begin((String)API_DOMAIN + ":" + (String)API_PORT + "/" + (String)API_PATH);
+        String url = (String)API_DOMAIN + ":" + (String)API_PORT + "/api/v2/weather-stations/" + (String)DEVICE_ID + "/readings";
+        http.begin(url);
         http.addHeader("Content-Type", "application/json");
         http.addHeader("Authorization", API_TOKEN_BEARER);
-        http.addHeader("Accept", "*/*");
+        http.addHeader("Accept", "application/json");
 
         // Realiza la subida a la API
         int httpCode = http.POST(params);
@@ -163,10 +206,22 @@ bool uploadDataToApi()
         }
 
         debug("Ruta de la api: ");
-        debug((String)API_DOMAIN + ":" + (String)API_PORT + "/" + (String)API_PATH);
+        debug(url);
 
         // Indica que ha terminado de transmitirse el post.
         http.end();
+
+        bool success = (httpCode >= 200 && httpCode < 300);
+        if (!success)
+        {
+            debug("Fallo en la subida a la API, código: " + (String)httpCode);
+            if (response.length() > 0)
+            {
+                debug("Respuesta: " + response);
+            }
+        }
+
+        return success;
     }
     else
     {

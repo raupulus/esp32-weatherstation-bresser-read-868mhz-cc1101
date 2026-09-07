@@ -4,7 +4,7 @@
 #define upload_to_api false // Indica si hay subidas a la API
 
 // Datos de la API
-#define API_DOMAIN ""              // El dominio o la ip de la api: https://fryntiz.dev
+#define API_DOMAIN ""              // El dominio o la ip de la api: https://example.dev
 #define API_PORT "443"             // Puerto al que acceder a la api
 #define API_PATH ""                // Directorio dentro de la api para lanzar el POST
 #define API_TOKEN_BEARER "Bearer ????" // Token Bearer para autenticarse en la API
